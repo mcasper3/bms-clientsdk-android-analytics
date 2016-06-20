@@ -187,6 +187,10 @@ public class BMSAnalytics {
         logger.analytics("", eventDescription);
     }
 
+    public static void logInteraction(final JSONObject interactionDescription) {
+        logger.interactions("", interactionDescription);
+    }
+
     /**
      * Specify current application user.  This value will be hashed to ensure privacy.
      *

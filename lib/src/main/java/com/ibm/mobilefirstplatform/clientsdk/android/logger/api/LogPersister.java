@@ -123,6 +123,7 @@ public final class LogPersister {
      */
     static public final Object WAIT_LOCK = new Object();
 
+    private static final String USER_INTERACTIONS_PATH = "/james/endpoint/here"; // TODO
     private static final String LOG_UPLOADER_PATH = "/analytics-service/rest/data/events/clientlogs/";
     private static final String LOG_UPLOADER_APP_ROUTE = "mobile-analytics-dashboard";
 
@@ -138,6 +139,10 @@ public final class LogPersister {
      * @exclude
      */
     public static final String ANALYTICS_FILENAME = "analytics.log";
+    /**
+     * @exclude
+     */
+    public static final String USER_INTERACTIONS_FILENAME = "interactions.log";
     /**
      * @exclude
      */
@@ -236,6 +241,7 @@ public final class LogPersister {
     //Use these flags to determine if a send request is in progress, either for the logs or for the analytics:
     private static boolean sendingLogs = false;
     private static boolean sendingAnalyticsLogs = false;
+    private static boolean sendingUserInteractionLogs = false;
 
     static private FileLoggerInterface fileLoggerInstance;
 
@@ -576,6 +582,25 @@ public final class LogPersister {
     }
 
     /**
+     * @exclude
+     * Send the accumulated log data for user interactions when the persistent log buffer exists and
+     * is not empty. The data accumulates in the log buffer from the user of {@link LogPersister}
+     * with capture (see {@link LogPersister#setAnalyticsCapture(boolean)}) turned on
+     *
+     * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener}
+     * which specifies a success and failure callback
+     */
+    public static void sendUserInteractions(ResponseListener listener) {
+        if (sendingUserInteractionLogs) {
+            return;
+        } else {
+            sendingUserInteractionLogs = true;
+
+            sendFiles(LogPersister.USER_INTERACTIONS_FILENAME, listener);
+        }
+    }
+
+    /**
      * Ask the Logger if an uncaught exception, which often appears to the user as a crashed app, is present in the persistent capture buffer.
      * This method should not be called after calling {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.BMSClient#initialize(Context, String, String, String)}.  If it is called too early, an error message is issued and false is returned.
      *
@@ -820,6 +845,8 @@ public final class LogPersister {
             // Determine whether is needs to go to analytics or logger
             if (analyticsCap && calledLevel.equals(Logger.LEVEL.ANALYTICS)) {
                 fileLoggerInstance.log(jsonObject, ANALYTICS_FILENAME);
+            } else if (analyticsCap && calledLevel.equals(Logger.LEVEL.INTERACTIONS)) {
+                fileLoggerInstance.log(jsonObject, USER_INTERACTIONS_FILENAME);
             } else if (cap) {
                 fileLoggerInstance.log(jsonObject, FILENAME);
             }
@@ -855,7 +882,7 @@ public final class LogPersister {
 
             boolean canLog = (calledLevel != null) && calledLevel.isLoggable();
 
-            if (canLog || (calledLevel == Logger.LEVEL.ANALYTICS)) {
+            if (canLog || (calledLevel == Logger.LEVEL.ANALYTICS) || (calledLevel == Logger.LEVEL.INTERACTIONS)) {
                 LogPersister.captureToFile(LogPersister.createJSONObject(calledLevel, loggerName, message, timestamp, metadata, t), calledLevel);
                 message = (null == message) ? "(null)" : message;  // android.util.Log can't handle null, so protect it
                 message = LogPersister.prependMetadata(message, metadata);
@@ -964,7 +991,11 @@ public final class LogPersister {
                 appRoute = BMSAnalytics.overrideServerHost;
             }
 
-            logUploaderURL = appRoute + LOG_UPLOADER_PATH;
+            if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
+                logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
+            } else {
+                logUploaderURL = appRoute + LOG_UPLOADER_PATH;
+            }
 
             SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, isAnalyticsRequest, logUploaderURL);
 

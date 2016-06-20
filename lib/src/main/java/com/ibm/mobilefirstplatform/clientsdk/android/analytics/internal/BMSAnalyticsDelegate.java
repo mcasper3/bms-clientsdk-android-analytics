@@ -46,6 +46,11 @@ public class BMSAnalyticsDelegate implements AnalyticsDelegate{
     }
 
     @Override
+    public void logInteraction(JSONObject eventMetadata) {
+        BMSAnalytics.logInteraction(eventMetadata);
+    }
+
+    @Override
     public void setUserIdentity(String username) {
         BMSAnalytics.setUserIdentity(username);
     }
