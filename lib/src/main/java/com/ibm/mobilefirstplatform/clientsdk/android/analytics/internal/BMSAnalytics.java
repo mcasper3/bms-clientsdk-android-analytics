@@ -179,6 +179,25 @@ public class BMSAnalytics {
     }
 
     /**
+     * Send the accumulated user interaction data when the persistent log buffer exists and is not empty.
+     * The data accumulates in the log buffer form the use of {@link BMSAnalytics} with capture
+     * (see {@link BMSAnalytics#enable()}) turned on.
+     */
+    public static void sendInteractions() {
+        LogPersister.sendInteractions(null);
+    }
+
+    /**
+     * See {@link BMSAnalytics#sendInteractions()}
+     *
+     * @param responseListener RequestListener which specifies an onSuccess callback and an onFailure
+     *                         callback (see {@link ResponseListener})
+     */
+    public static void sendInteractions(ResponseListener responseListener) {
+        LogPersister.sendInteractions(responseListener);
+    }
+
+    /**
      * Log an analytics event.
      *
      * @param eventDescription An object that contains the description for the event

@@ -41,6 +41,16 @@ public class BMSAnalyticsDelegate implements AnalyticsDelegate{
     }
 
     @Override
+    public void sendInteractions() {
+        BMSAnalytics.sendInteractions();
+    }
+
+    @Override
+    public void sendInteractions(Object responseListener) {
+        BMSAnalytics.sendInteractions((ResponseListener) responseListener);
+    }
+
+    @Override
     public void log(JSONObject eventMetadata) {
         BMSAnalytics.log(eventMetadata);
     }

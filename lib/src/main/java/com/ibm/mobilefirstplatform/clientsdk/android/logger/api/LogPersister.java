@@ -39,8 +39,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
@@ -590,7 +588,7 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener}
      * which specifies a success and failure callback
      */
-    public static void sendUserInteractions(ResponseListener listener) {
+    public static void sendInteractions(ResponseListener listener) {
         if (sendingUserInteractionLogs) {
             return;
         } else {
@@ -732,7 +730,7 @@ public final class LogPersister {
 
         X500Principal DEBUG_DN = new X500Principal("CN=Android Debug,O=Android,C=US");	// default debug common name
         PackageManager packageManager = context.getPackageManager();
-        boolean debug = false;
+        boolean debug;
 
         try {
             Signature raw = packageManager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES).signatures[0];
@@ -794,8 +792,8 @@ public final class LogPersister {
 
             stackTraceElements = throwable.getStackTrace();
 
-            for (int i = 0; i < stackTraceElements.length; i++) {
-                stackArray.put(stackTraceElements[i].toString());
+            for (StackTraceElement stackTraceElement : stackTraceElements) {
+                stackArray.put(stackTraceElement.toString());
             }
 
             throwable = throwable.getCause();
