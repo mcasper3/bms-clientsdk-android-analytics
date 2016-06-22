@@ -207,7 +207,7 @@ public class BMSAnalytics {
     }
 
     public static void logInteraction(final JSONObject interactionDescription) {
-        logger.interactions("", interactionDescription);
+        logger.interactions(interactionDescription);
     }
 
     /**

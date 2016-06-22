@@ -813,6 +813,32 @@ public class LoggerTest {
     }
 
     @Test
+    public void testInteractionString() throws Exception {
+        FileLoggerMock mockFileLogger = setFileLoggerInstanceField(activity);
+        LogPersister.setContext(activity);
+        LogPersister.setLogLevel(LEVEL.DEBUG);
+        Logger logger = Logger.getLogger("package");
+        LogPersister.setAnalyticsCapture(true);
+
+        JSONObject metadata = new JSONObject();
+        metadata.put("elementId", "1234");
+        metadata.put("elementType", "Button");
+
+        logger.interactions(metadata);
+
+        waitForNotify(logger);
+
+        JSONArray jsonArray = mockFileLogger.getAccumulatedLogCalls();
+        JSONObject jsonObject = jsonArray.getJSONObject(0);
+
+        // jsonObject should have a fixed number of key/value pairs
+        assertEquals("resulting jsonobject in file has wrong number of key/value pairs", 2, jsonObject.length());
+        // verify the key/value pairs
+        assertEquals("1234", jsonObject.getString("elementId"));
+        assertEquals("Button", jsonObject.getString("elementType"));
+    }
+
+    @Test
     public void testLoggerTimestampAccuracy() throws Exception {
         // make sure the threadpool and queuing inside Logger implementation don't mess with the timestamps
         FileLoggerMock mockFileLogger = setFileLoggerInstanceField(activity);
