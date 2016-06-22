@@ -126,7 +126,7 @@ public final class LogPersister {
      */
     static public final Object WAIT_LOCK = new Object();
 
-    private static final String USER_INTERACTIONS_PATH = "/logs";
+    private static final String USER_INTERACTIONS_PATH = "api/logs";
     private static final String LOG_UPLOADER_PATH = "/analytics-service/rest/data/events/clientlogs/";
     private static final String LOG_UPLOADER_APP_ROUTE = "mobile-analytics-dashboard";
 
