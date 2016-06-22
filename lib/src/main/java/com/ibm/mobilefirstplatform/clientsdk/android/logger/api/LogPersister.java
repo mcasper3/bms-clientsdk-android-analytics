@@ -630,8 +630,14 @@ public final class LogPersister {
      * @param t (optional) an Exception or Throwable, may be null
      */
     public static void doLog(final Logger.LEVEL calledLevel, String message, final long timestamp, final Throwable t, JSONObject additionalMetadata, final String loggerName, final boolean isInternalLogger, final Object loggerObject) {
-        // we do this outside of the thread, otherwise we can't find the caller to attach the call stack metadata
-        JSONObject metadata = appendStackMetadata(additionalMetadata);
+        JSONObject metadata;
+
+        if (calledLevel != Logger.LEVEL.INTERACTIONS) {
+            // we do this outside of the thread, otherwise we can't find the caller to attach the call stack metadata
+            metadata = appendStackMetadata(additionalMetadata);
+        } else {
+            metadata = additionalMetadata;
+        }
 
         ThreadPoolWorkQueue.execute(new DoLogRunnable(calledLevel, message, timestamp, metadata, t, loggerName, isInternalLogger, loggerObject));
     }
@@ -881,7 +887,15 @@ public final class LogPersister {
             boolean canLog = (calledLevel != null) && calledLevel.isLoggable();
 
             if (canLog || (calledLevel == Logger.LEVEL.ANALYTICS) || (calledLevel == Logger.LEVEL.INTERACTIONS)) {
-                LogPersister.captureToFile(LogPersister.createJSONObject(calledLevel, loggerName, message, timestamp, metadata, t), calledLevel);
+                JSONObject logJson;
+
+                if (calledLevel != Logger.LEVEL.INTERACTIONS) {
+                    logJson = LogPersister.createJSONObject(calledLevel, loggerName, message, timestamp, metadata, t);
+                } else {
+                    logJson = metadata;
+                }
+
+                LogPersister.captureToFile(logJson, calledLevel);
                 message = (null == message) ? "(null)" : message;  // android.util.Log can't handle null, so protect it
                 message = LogPersister.prependMetadata(message, metadata);
                 switch (calledLevel) {
