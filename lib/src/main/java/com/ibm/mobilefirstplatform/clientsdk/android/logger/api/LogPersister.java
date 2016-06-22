@@ -15,8 +15,12 @@ package com.ibm.mobilefirstplatform.clientsdk.android.logger.api;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 import com.ibm.mobilefirstplatform.clientsdk.android.analytics.internal.BMSAnalytics;
@@ -28,6 +32,7 @@ import com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLogger;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLoggerInterface;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.JULHandler;
+import com.ibm.mobilefirstplatform.clientsdk.android.security.identity.BaseDeviceIdentity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -121,7 +126,7 @@ public final class LogPersister {
      */
     static public final Object WAIT_LOCK = new Object();
 
-    private static final String USER_INTERACTIONS_PATH = "/james/endpoint/here"; // TODO
+    private static final String USER_INTERACTIONS_PATH = "/logs";
     private static final String LOG_UPLOADER_PATH = "/analytics-service/rest/data/events/clientlogs/";
     private static final String LOG_UPLOADER_APP_ROUTE = "mobile-analytics-dashboard";
 
@@ -981,7 +986,15 @@ public final class LogPersister {
                 try {
                     byte[] payload = LogPersister.getByteArrayFromFile(fileToSend);
 
-                    payloadObj.put("__logdata", new String(payload, "UTF-8"));
+                    String logData = new String(payload, "UTF-8");
+                    String logDataKey = "__logdata";
+
+                    if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
+                        logData = "[" + logData + "]";
+                        logDataKey = "interactions";
+                    }
+
+                    payloadObj.put(logDataKey, logData);
 
                 } catch (IOException e) {
                     Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).error("Failed to send logs due to exception.", e);
@@ -1005,6 +1018,7 @@ public final class LogPersister {
 
             if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
                 logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
+                payloadObj = getInteractionRequestPayload(payloadObj);
             } else {
                 logUploaderURL = appRoute + LOG_UPLOADER_PATH;
             }
@@ -1013,12 +1027,11 @@ public final class LogPersister {
 
             Request sendLogsRequest = new Request(logUploaderURL, Request.POST);
 
-            sendLogsRequest.addHeader("Content-Type", "text/plain");
+            sendLogsRequest.addHeader(Request.CONTENT_TYPE, Request.JSON_CONTENT_TYPE);
 
-            if(BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")){
+            if (BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")) {
                 sendLogsRequest.addHeader("x-mfp-analytics-api-key", BMSAnalytics.getClientApiKey());
-            }
-            else{
+            } else {
                 requestListener.onFailure(null, new IllegalArgumentException("Client API key has not been set."), null);
                 return;
             }
@@ -1029,7 +1042,9 @@ public final class LogPersister {
                 sendLogsRequest.addHeader("x-analytics-p30-appid", guid);
             }
 
-            sendLogsRequest.send(null, payloadObj.toString(), requestListener);
+            sendLogsRequest.send(null, payloadObj, requestListener);
+            //TODO remove
+            Log.e(LOG_TAG_NAME, payloadObj.toString());
         }
     }
 
@@ -1118,5 +1133,86 @@ public final class LogPersister {
         }
 
     }
+
+    //region Stuff that needs to be moved
+
+    private static JSONObject getInteractionRequestPayload(JSONObject payload) {
+        BaseDeviceIdentity deviceIdentity = new BaseDeviceIdentity(context);
+
+        try {
+            payload.put("deviceID", deviceIdentity.getId());
+            payload.put("deviceModel", deviceIdentity.getModel());
+            payload.put("deviceBrand", deviceIdentity.getBrand());
+            payload.put("os", deviceIdentity.getOS());
+            payload.put("osVersion", deviceIdentity.getOSVersion());
+
+            PackageManager packageManager = context.getPackageManager();
+            PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
+            payload.put("appVersion", info.versionName);
+            payload.put("appVersionCode", info.versionCode);
+            payload.put("appName", context.getPackageName());
+
+            Resources resources = context.getResources();
+
+            DisplayMetrics metrics = resources.getDisplayMetrics();
+
+            int width = metrics.widthPixels;
+            int height = metrics.heightPixels;
+
+            JSONObject deviceResolution = new JSONObject();
+
+            int currentOrientation = resources.getConfiguration().orientation;
+
+            if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
+                deviceResolution.put("width", width);
+                deviceResolution.put("height", height);
+            } else {
+                deviceResolution.put("width", height);
+                deviceResolution.put("height", width);
+            }
+
+            String screenDensity = getScreenDensity(metrics);
+
+            payload.put("screenResolution", deviceResolution.toString());
+            payload.put("screenDensity", screenDensity);
+        } catch (JSONException e) {
+            Log.e(LOG_TAG_NAME, "Failed to get device info");
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(LOG_TAG_NAME, "Failed to get package info");
+        }
+        return payload;
+    }
+
+    private static String getScreenDensity(DisplayMetrics metrics) {
+        String density;
+        int densityDpi = metrics.densityDpi;
+
+        switch (densityDpi) {
+            case DisplayMetrics.DENSITY_LOW:
+                density = "ldpi";
+                break;
+            case DisplayMetrics.DENSITY_MEDIUM:
+                density = "mdpi";
+                break;
+            case DisplayMetrics.DENSITY_HIGH:
+                density = "hdpi";
+                break;
+            case DisplayMetrics.DENSITY_XHIGH:
+                density = "xhdpi";
+                break;
+            case DisplayMetrics.DENSITY_XXHIGH:
+                density = "xxhdpi";
+                break;
+            case DisplayMetrics.DENSITY_XXXHIGH:
+                density = "xxxhdpi";
+                break;
+            default:
+                density = "unknown";
+        }
+
+        return density;
+    }
+
+    //endregion
 
 }
