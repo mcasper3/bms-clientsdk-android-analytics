@@ -1143,14 +1143,14 @@ public final class LogPersister {
             payload.put("deviceID", deviceIdentity.getId());
             payload.put("deviceModel", deviceIdentity.getModel());
             payload.put("deviceBrand", deviceIdentity.getBrand());
-            payload.put("os", deviceIdentity.getOS());
-            payload.put("osVersion", deviceIdentity.getOSVersion());
+            payload.put("deviceOS", deviceIdentity.getOS());
+            payload.put("deviceOSVersion", deviceIdentity.getOSVersion());
 
             PackageManager packageManager = context.getPackageManager();
             PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
             payload.put("appVersion", info.versionName);
-            payload.put("appVersionCode", info.versionCode);
-            payload.put("appName", context.getPackageName());
+            payload.put("appVersionCode", Integer.toString(info.versionCode));
+            payload.put("appID", context.getPackageName());
 
             Resources resources = context.getResources();
 
