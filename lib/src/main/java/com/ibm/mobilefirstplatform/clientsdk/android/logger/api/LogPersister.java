@@ -986,15 +986,17 @@ public final class LogPersister {
                 try {
                     byte[] payload = LogPersister.getByteArrayFromFile(fileToSend);
 
-                    String logData = new String(payload, "UTF-8");
+                    Object logData = new String(payload, "UTF-8");
                     String logDataKey = "__logdata";
 
                     if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
                         logData = "[" + logData + "]";
                         logDataKey = "interactions";
+                        logData = new JSONArray((String)logData);
                     }
 
                     payloadObj.put(logDataKey, logData);
+
 
                 } catch (IOException e) {
                     Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).error("Failed to send logs due to exception.", e);
