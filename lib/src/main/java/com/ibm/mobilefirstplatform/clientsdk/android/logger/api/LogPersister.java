@@ -1083,6 +1083,7 @@ public final class LogPersister {
             super();
             this.file = file;
             this.userDefinedListener = userDefinedListener;
+            this.requestType = requestType;
 
             this.url = url;
         }
