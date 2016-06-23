@@ -1005,7 +1005,18 @@ public final class LogPersister {
                 }
             }
 
-            boolean isAnalyticsRequest = fileName.equalsIgnoreCase(LogPersister.ANALYTICS_FILENAME);
+            RequestType requestType;
+
+            switch (fileName) {
+                case ANALYTICS_FILENAME:
+                    requestType = RequestType.ANALYTICS;
+                    break;
+                case USER_INTERACTIONS_FILENAME:
+                    requestType = RequestType.INTERACTIONS;
+                    break;
+                default:
+                    requestType = RequestType.STANDARD;
+            }
 
             String appRoute;
             String logUploaderURL;
@@ -1025,7 +1036,7 @@ public final class LogPersister {
                 logUploaderURL = appRoute + LOG_UPLOADER_PATH;
             }
 
-            SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, isAnalyticsRequest, logUploaderURL);
+            SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, requestType, logUploaderURL);
 
             Request sendLogsRequest = new Request(logUploaderURL, Request.POST);
 
@@ -1050,6 +1061,12 @@ public final class LogPersister {
         }
     }
 
+    private enum RequestType {
+        ANALYTICS,
+        INTERACTIONS,
+        STANDARD
+    }
+
     static class SendLogsRequestListener implements ResponseListener {
 
         private static final Logger logger = Logger.getLogger(LogPersister.INTERNAL_PREFIX + SendLogsRequestListener.class.getName());
@@ -1058,16 +1075,15 @@ public final class LogPersister {
 
         private ResponseListener userDefinedListener;
 
-        private boolean isAnalyticsRequest = false;
+        private RequestType requestType;
 
         private String url = "";
 
-        public SendLogsRequestListener(File file, ResponseListener userDefinedListener, boolean isAnalyticsRequest, String url) {
+        public SendLogsRequestListener(File file, ResponseListener userDefinedListener, RequestType requestType, String url) {
             super();
             this.file = file;
             this.userDefinedListener = userDefinedListener;
 
-            this.isAnalyticsRequest = isAnalyticsRequest;
             this.url = url;
         }
 
@@ -1099,10 +1115,11 @@ public final class LogPersister {
             }
             finally{
                 //Turn off the send flag:
-                if(isAnalyticsRequest){
+                if(requestType == RequestType.ANALYTICS) {
                     sendingAnalyticsLogs = false;
-                }
-                else{
+                } else if (requestType == RequestType.INTERACTIONS) {
+                    sendingUserInteractionLogs = false;
+                } else{
                     sendingLogs = false;
                 }
 
@@ -1121,10 +1138,11 @@ public final class LogPersister {
             }
 
             //Turn off the send flag:
-            if(isAnalyticsRequest){
+            if(requestType == RequestType.ANALYTICS) {
                 sendingAnalyticsLogs = false;
-            }
-            else{
+            } else if (requestType == RequestType.INTERACTIONS) {
+                sendingUserInteractionLogs = false;
+            } else{
                 sendingLogs = false;
             }
 
