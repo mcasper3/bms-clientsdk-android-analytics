@@ -206,6 +206,11 @@ public class BMSAnalytics {
         logger.analytics("", eventDescription);
     }
 
+    /**
+     * Log a user interaction with the application
+     *
+     * @param interactionDescription An object that contains the description of the interaction
+     */
     public static void logInteraction(final JSONObject interactionDescription) {
         logger.interactions(interactionDescription);
     }
