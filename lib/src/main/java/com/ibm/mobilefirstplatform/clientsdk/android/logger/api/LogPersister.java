@@ -15,12 +15,8 @@ package com.ibm.mobilefirstplatform.clientsdk.android.logger.api;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.util.DisplayMetrics;
 import android.util.Log;
 
 import com.ibm.mobilefirstplatform.clientsdk.android.analytics.internal.BMSAnalytics;
@@ -31,8 +27,8 @@ import com.ibm.mobilefirstplatform.clientsdk.android.core.api.Response;
 import com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLogger;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLoggerInterface;
+import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.InteractionRequestUtil;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.JULHandler;
-import com.ibm.mobilefirstplatform.clientsdk.android.security.identity.BaseDeviceIdentity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -556,10 +552,7 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener} which specifies a success and failure callback
      */
     static public void send (ResponseListener listener) {
-        if(sendingLogs){
-            return;
-        }
-        else{
+        if(!sendingLogs){
             sendingLogs = true;
             sendFiles(LogPersister.FILENAME, listener);
         }
@@ -574,12 +567,8 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener} which specifies a success and failure callback
      */
     static public void sendAnalytics (ResponseListener listener) {
-        if(sendingAnalyticsLogs){
-            return;
-        }
-        else{
+        if (!sendingAnalyticsLogs) {
             sendingAnalyticsLogs = true;
-
             sendFiles(LogPersister.ANALYTICS_FILENAME, listener);
         }
     }
@@ -594,11 +583,8 @@ public final class LogPersister {
      * which specifies a success and failure callback
      */
     public static void sendInteractions(ResponseListener listener) {
-        if (sendingUserInteractionLogs) {
-            return;
-        } else {
+        if (!sendingUserInteractionLogs) {
             sendingUserInteractionLogs = true;
-
             sendFiles(LogPersister.USER_INTERACTIONS_FILENAME, listener);
         }
     }
@@ -1031,7 +1017,7 @@ public final class LogPersister {
 
             if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
                 logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
-                payloadObj = getInteractionRequestPayload(payloadObj);
+                payloadObj = InteractionRequestUtil.getInteractionRequestPayload(payloadObj, context);
             } else {
                 logUploaderURL = appRoute + LOG_UPLOADER_PATH;
             }
@@ -1152,86 +1138,5 @@ public final class LogPersister {
         }
 
     }
-
-    //region Stuff that needs to be moved
-
-    private static JSONObject getInteractionRequestPayload(JSONObject payload) {
-        BaseDeviceIdentity deviceIdentity = new BaseDeviceIdentity(context);
-
-        try {
-            payload.put("deviceID", deviceIdentity.getId());
-            payload.put("deviceModel", deviceIdentity.getModel());
-            payload.put("deviceBrand", deviceIdentity.getBrand());
-            payload.put("deviceOS", deviceIdentity.getOS());
-            payload.put("deviceOSVersion", deviceIdentity.getOSVersion());
-
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
-            payload.put("appVersion", info.versionName);
-            payload.put("appVersionCode", Integer.toString(info.versionCode));
-            payload.put("appID", context.getPackageName());
-
-            Resources resources = context.getResources();
-
-            DisplayMetrics metrics = resources.getDisplayMetrics();
-
-            int width = metrics.widthPixels;
-            int height = metrics.heightPixels;
-
-            JSONObject deviceResolution = new JSONObject();
-
-            int currentOrientation = resources.getConfiguration().orientation;
-
-            if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
-                deviceResolution.put("width", width);
-                deviceResolution.put("height", height);
-            } else {
-                deviceResolution.put("width", height);
-                deviceResolution.put("height", width);
-            }
-
-            String screenDensity = getScreenDensity(metrics);
-
-            payload.put("screenResolution", deviceResolution);
-            payload.put("screenDensity", screenDensity);
-        } catch (JSONException e) {
-            Log.e(LOG_TAG_NAME, "Failed to get device info");
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(LOG_TAG_NAME, "Failed to get package info");
-        }
-        return payload;
-    }
-
-    private static String getScreenDensity(DisplayMetrics metrics) {
-        String density;
-        int densityDpi = metrics.densityDpi;
-
-        switch (densityDpi) {
-            case DisplayMetrics.DENSITY_LOW:
-                density = "ldpi";
-                break;
-            case DisplayMetrics.DENSITY_MEDIUM:
-                density = "mdpi";
-                break;
-            case DisplayMetrics.DENSITY_HIGH:
-                density = "hdpi";
-                break;
-            case DisplayMetrics.DENSITY_XHIGH:
-                density = "xhdpi";
-                break;
-            case DisplayMetrics.DENSITY_XXHIGH:
-                density = "xxhdpi";
-                break;
-            case DisplayMetrics.DENSITY_XXXHIGH:
-                density = "xxxhdpi";
-                break;
-            default:
-                density = "unknown";
-        }
-
-        return density;
-    }
-
-    //endregion
 
 }
