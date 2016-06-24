@@ -986,17 +986,17 @@ public final class LogPersister {
                 try {
                     byte[] payload = LogPersister.getByteArrayFromFile(fileToSend);
 
-                    Object logData = new String(payload, "UTF-8");
+                    String fileData = new String(payload, "UTF-8");
                     String logDataKey = "__logdata";
 
                     if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
-                        logData = "[" + logData + "]";
+                        fileData = "[" + fileData.substring(0, fileData.length() - 1) + "]";
                         logDataKey = "interactions";
-                        logData = new JSONArray((String)logData);
+                        JSONArray logArray = new JSONArray(fileData);
+                        payloadObj.put(logDataKey, logArray);
+                    } else {
+                        payloadObj.put(logDataKey, fileData);
                     }
-
-                    payloadObj.put(logDataKey, logData);
-
 
                 } catch (IOException e) {
                     Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).error("Failed to send logs due to exception.", e);
@@ -1056,8 +1056,6 @@ public final class LogPersister {
             }
 
             sendLogsRequest.send(null, payloadObj, requestListener);
-            //TODO remove
-            Log.e(LOG_TAG_NAME, payloadObj.toString());
         }
     }
 
@@ -1194,7 +1192,7 @@ public final class LogPersister {
 
             String screenDensity = getScreenDensity(metrics);
 
-            payload.put("screenResolution", deviceResolution.toString());
+            payload.put("screenResolution", deviceResolution);
             payload.put("screenDensity", screenDensity);
         } catch (JSONException e) {
             Log.e(LOG_TAG_NAME, "Failed to get device info");
