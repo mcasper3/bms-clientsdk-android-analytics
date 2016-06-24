@@ -27,6 +27,7 @@ import com.ibm.mobilefirstplatform.clientsdk.android.core.api.Response;
 import com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLogger;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.FileLoggerInterface;
+import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.InteractionRequestUtil;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.internal.JULHandler;
 
 import org.json.JSONArray;
@@ -39,8 +40,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.text.SimpleDateFormat;
-import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
@@ -123,7 +122,7 @@ public final class LogPersister {
      */
     static public final Object WAIT_LOCK = new Object();
 
-    private static final String USER_INTERACTIONS_PATH = "/james/endpoint/here"; // TODO
+    private static final String USER_INTERACTIONS_PATH = "api/logs";
     private static final String LOG_UPLOADER_PATH = "/analytics-service/rest/data/events/clientlogs/";
     private static final String LOG_UPLOADER_APP_ROUTE = "mobile-analytics-dashboard";
 
@@ -553,10 +552,7 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener} which specifies a success and failure callback
      */
     static public void send (ResponseListener listener) {
-        if(sendingLogs){
-            return;
-        }
-        else{
+        if(!sendingLogs){
             sendingLogs = true;
             sendFiles(LogPersister.FILENAME, listener);
         }
@@ -571,12 +567,8 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener} which specifies a success and failure callback
      */
     static public void sendAnalytics (ResponseListener listener) {
-        if(sendingAnalyticsLogs){
-            return;
-        }
-        else{
+        if (!sendingAnalyticsLogs) {
             sendingAnalyticsLogs = true;
-
             sendFiles(LogPersister.ANALYTICS_FILENAME, listener);
         }
     }
@@ -590,12 +582,9 @@ public final class LogPersister {
      * @param listener {@link com.ibm.mobilefirstplatform.clientsdk.android.core.api.ResponseListener}
      * which specifies a success and failure callback
      */
-    public static void sendUserInteractions(ResponseListener listener) {
-        if (sendingUserInteractionLogs) {
-            return;
-        } else {
+    public static void sendInteractions(ResponseListener listener) {
+        if (!sendingUserInteractionLogs) {
             sendingUserInteractionLogs = true;
-
             sendFiles(LogPersister.USER_INTERACTIONS_FILENAME, listener);
         }
     }
@@ -632,8 +621,14 @@ public final class LogPersister {
      * @param t (optional) an Exception or Throwable, may be null
      */
     public static void doLog(final Logger.LEVEL calledLevel, String message, final long timestamp, final Throwable t, JSONObject additionalMetadata, final String loggerName, final boolean isInternalLogger, final Object loggerObject) {
-        // we do this outside of the thread, otherwise we can't find the caller to attach the call stack metadata
-        JSONObject metadata = appendStackMetadata(additionalMetadata);
+        JSONObject metadata;
+
+        if (calledLevel != Logger.LEVEL.INTERACTIONS) {
+            // we do this outside of the thread, otherwise we can't find the caller to attach the call stack metadata
+            metadata = appendStackMetadata(additionalMetadata);
+        } else {
+            metadata = additionalMetadata;
+        }
 
         ThreadPoolWorkQueue.execute(new DoLogRunnable(calledLevel, message, timestamp, metadata, t, loggerName, isInternalLogger, loggerObject));
     }
@@ -732,7 +727,7 @@ public final class LogPersister {
 
         X500Principal DEBUG_DN = new X500Principal("CN=Android Debug,O=Android,C=US");	// default debug common name
         PackageManager packageManager = context.getPackageManager();
-        boolean debug = false;
+        boolean debug;
 
         try {
             Signature raw = packageManager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES).signatures[0];
@@ -794,8 +789,8 @@ public final class LogPersister {
 
             stackTraceElements = throwable.getStackTrace();
 
-            for (int i = 0; i < stackTraceElements.length; i++) {
-                stackArray.put(stackTraceElements[i].toString());
+            for (StackTraceElement stackTraceElement : stackTraceElements) {
+                stackArray.put(stackTraceElement.toString());
             }
 
             throwable = throwable.getCause();
@@ -883,7 +878,15 @@ public final class LogPersister {
             boolean canLog = (calledLevel != null) && calledLevel.isLoggable();
 
             if (canLog || (calledLevel == Logger.LEVEL.ANALYTICS) || (calledLevel == Logger.LEVEL.INTERACTIONS)) {
-                LogPersister.captureToFile(LogPersister.createJSONObject(calledLevel, loggerName, message, timestamp, metadata, t), calledLevel);
+                JSONObject logJson;
+
+                if (calledLevel != Logger.LEVEL.INTERACTIONS) {
+                    logJson = LogPersister.createJSONObject(calledLevel, loggerName, message, timestamp, metadata, t);
+                } else {
+                    logJson = metadata;
+                }
+
+                LogPersister.captureToFile(logJson, calledLevel);
                 message = (null == message) ? "(null)" : message;  // android.util.Log can't handle null, so protect it
                 message = LogPersister.prependMetadata(message, metadata);
                 switch (calledLevel) {
@@ -969,7 +972,17 @@ public final class LogPersister {
                 try {
                     byte[] payload = LogPersister.getByteArrayFromFile(fileToSend);
 
-                    payloadObj.put("__logdata", new String(payload, "UTF-8"));
+                    String fileData = new String(payload, "UTF-8");
+                    String logDataKey = "__logdata";
+
+                    if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
+                        fileData = "[" + fileData.substring(0, fileData.length() - 1) + "]";
+                        logDataKey = "interactions";
+                        JSONArray logArray = new JSONArray(fileData);
+                        payloadObj.put(logDataKey, logArray);
+                    } else {
+                        payloadObj.put(logDataKey, fileData);
+                    }
 
                 } catch (IOException e) {
                     Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).error("Failed to send logs due to exception.", e);
@@ -978,7 +991,18 @@ public final class LogPersister {
                 }
             }
 
-            boolean isAnalyticsRequest = fileName.equalsIgnoreCase(LogPersister.ANALYTICS_FILENAME);
+            RequestType requestType;
+
+            switch (fileName) {
+                case ANALYTICS_FILENAME:
+                    requestType = RequestType.ANALYTICS;
+                    break;
+                case USER_INTERACTIONS_FILENAME:
+                    requestType = RequestType.INTERACTIONS;
+                    break;
+                default:
+                    requestType = RequestType.STANDARD;
+            }
 
             String appRoute;
             String logUploaderURL;
@@ -993,20 +1017,20 @@ public final class LogPersister {
 
             if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
                 logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
+                payloadObj = InteractionRequestUtil.getInteractionRequestPayload(payloadObj, context);
             } else {
                 logUploaderURL = appRoute + LOG_UPLOADER_PATH;
             }
 
-            SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, isAnalyticsRequest, logUploaderURL);
+            SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, requestType, logUploaderURL);
 
             Request sendLogsRequest = new Request(logUploaderURL, Request.POST);
 
-            sendLogsRequest.addHeader("Content-Type", "text/plain");
+            sendLogsRequest.addHeader(Request.CONTENT_TYPE, Request.JSON_CONTENT_TYPE);
 
-            if(BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")){
+            if (BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")) {
                 sendLogsRequest.addHeader("x-mfp-analytics-api-key", BMSAnalytics.getClientApiKey());
-            }
-            else{
+            } else {
                 requestListener.onFailure(null, new IllegalArgumentException("Client API key has not been set."), null);
                 return;
             }
@@ -1017,8 +1041,14 @@ public final class LogPersister {
                 sendLogsRequest.addHeader("x-analytics-p30-appid", guid);
             }
 
-            sendLogsRequest.send(null, payloadObj.toString(), requestListener);
+            sendLogsRequest.send(null, payloadObj, requestListener);
         }
+    }
+
+    private enum RequestType {
+        ANALYTICS,
+        INTERACTIONS,
+        STANDARD
     }
 
     static class SendLogsRequestListener implements ResponseListener {
@@ -1029,16 +1059,16 @@ public final class LogPersister {
 
         private ResponseListener userDefinedListener;
 
-        private boolean isAnalyticsRequest = false;
+        private RequestType requestType;
 
         private String url = "";
 
-        public SendLogsRequestListener(File file, ResponseListener userDefinedListener, boolean isAnalyticsRequest, String url) {
+        public SendLogsRequestListener(File file, ResponseListener userDefinedListener, RequestType requestType, String url) {
             super();
             this.file = file;
             this.userDefinedListener = userDefinedListener;
+            this.requestType = requestType;
 
-            this.isAnalyticsRequest = isAnalyticsRequest;
             this.url = url;
         }
 
@@ -1070,10 +1100,11 @@ public final class LogPersister {
             }
             finally{
                 //Turn off the send flag:
-                if(isAnalyticsRequest){
+                if(requestType == RequestType.ANALYTICS) {
                     sendingAnalyticsLogs = false;
-                }
-                else{
+                } else if (requestType == RequestType.INTERACTIONS) {
+                    sendingUserInteractionLogs = false;
+                } else{
                     sendingLogs = false;
                 }
 
@@ -1092,10 +1123,11 @@ public final class LogPersister {
             }
 
             //Turn off the send flag:
-            if(isAnalyticsRequest){
+            if(requestType == RequestType.ANALYTICS) {
                 sendingAnalyticsLogs = false;
-            }
-            else{
+            } else if (requestType == RequestType.INTERACTIONS) {
+                sendingUserInteractionLogs = false;
+            } else{
                 sendingLogs = false;
             }
 
