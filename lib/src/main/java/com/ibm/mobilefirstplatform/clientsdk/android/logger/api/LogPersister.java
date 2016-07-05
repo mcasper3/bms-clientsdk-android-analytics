@@ -950,7 +950,7 @@ public final class LogPersister {
             }
 
             if (fileToSend.length() > 0) {
-				/*
+                /*
                  * Read the file contents, send the data to the server, and
                  * delete the file upon successful receipt by the server.
                  *
