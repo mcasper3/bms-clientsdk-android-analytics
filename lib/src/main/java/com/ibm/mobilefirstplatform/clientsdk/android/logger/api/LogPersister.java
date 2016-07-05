@@ -937,7 +937,7 @@ public final class LogPersister {
         for (int i = LogPersister.MAX_NUM_LOG_FILES - 1; i > -1; i--) {
             JSONObject payloadObj = new JSONObject();
 
-            File file = new File(context.getFilesDir (), fileName + "." + i);
+            File file = new File(context.getFilesDir(), fileName + "." + i);
 
             // Use a temporary file to allow multi-threads to continue to write to the
             // original log file, so we don't lose log data by wiping out a log file that
@@ -946,7 +946,7 @@ public final class LogPersister {
 
             if (!fileToSend.exists()) {
                 Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).debug("Moving " + file + " to " + fileToSend);
-                file.renameTo (fileToSend);
+                file.renameTo(fileToSend);
             }
 
             if (fileToSend.length() > 0) {
@@ -989,59 +989,59 @@ public final class LogPersister {
                 } catch (JSONException e) {
                     Logger.getLogger(LogPersister.INTERNAL_PREFIX + LOG_TAG_NAME).error("Failed to send logs due to exception.", e);
                 }
+
+                RequestType requestType;
+
+                switch (fileName) {
+                    case ANALYTICS_FILENAME:
+                        requestType = RequestType.ANALYTICS;
+                        break;
+                    case USER_INTERACTIONS_FILENAME:
+                        requestType = RequestType.INTERACTIONS;
+                        break;
+                    default:
+                        requestType = RequestType.STANDARD;
+                }
+
+                String appRoute;
+                String logUploaderURL;
+
+                BMSClient client = BMSClient.getInstance();
+
+                appRoute = client.getDefaultProtocol() + "://" + LOG_UPLOADER_APP_ROUTE + client.getBluemixRegionSuffix();
+
+                if (BMSAnalytics.overrideServerHost != null) {
+                    appRoute = BMSAnalytics.overrideServerHost;
+                }
+
+                if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
+                    logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
+                    payloadObj = InteractionRequestUtil.getInteractionRequestPayload(payloadObj, context);
+                } else {
+                    logUploaderURL = appRoute + LOG_UPLOADER_PATH;
+                }
+
+                SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, requestType, logUploaderURL);
+
+                Request sendLogsRequest = new Request(logUploaderURL, Request.POST);
+
+                sendLogsRequest.addHeader(Request.CONTENT_TYPE, Request.JSON_CONTENT_TYPE);
+
+                if (BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")) {
+                    sendLogsRequest.addHeader("x-mfp-analytics-api-key", BMSAnalytics.getClientApiKey());
+                } else {
+                    requestListener.onFailure(null, new IllegalArgumentException("Client API key has not been set."), null);
+                    return;
+                }
+
+                //Add BMSClient GUID as a header, in order to support P30 Analytics:
+                String guid = BMSClient.getInstance().getBluemixAppGUID();
+                if (guid != null && guid.length() > 0) {
+                    sendLogsRequest.addHeader("x-analytics-p30-appid", guid);
+                }
+
+                sendLogsRequest.send(null, payloadObj, requestListener);
             }
-
-            RequestType requestType;
-
-            switch (fileName) {
-                case ANALYTICS_FILENAME:
-                    requestType = RequestType.ANALYTICS;
-                    break;
-                case USER_INTERACTIONS_FILENAME:
-                    requestType = RequestType.INTERACTIONS;
-                    break;
-                default:
-                    requestType = RequestType.STANDARD;
-            }
-
-            String appRoute;
-            String logUploaderURL;
-
-            BMSClient client = BMSClient.getInstance();
-
-            appRoute = client.getDefaultProtocol() + "://" + LOG_UPLOADER_APP_ROUTE + client.getBluemixRegionSuffix();
-
-            if (BMSAnalytics.overrideServerHost != null){
-                appRoute = BMSAnalytics.overrideServerHost;
-            }
-
-            if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
-                logUploaderURL = appRoute + USER_INTERACTIONS_PATH;
-                payloadObj = InteractionRequestUtil.getInteractionRequestPayload(payloadObj, context);
-            } else {
-                logUploaderURL = appRoute + LOG_UPLOADER_PATH;
-            }
-
-            SendLogsRequestListener requestListener = new SendLogsRequestListener(fileToSend, listener, requestType, logUploaderURL);
-
-            Request sendLogsRequest = new Request(logUploaderURL, Request.POST);
-
-            sendLogsRequest.addHeader(Request.CONTENT_TYPE, Request.JSON_CONTENT_TYPE);
-
-            if (BMSAnalytics.getClientApiKey() != null && !BMSAnalytics.getClientApiKey().equalsIgnoreCase("")) {
-                sendLogsRequest.addHeader("x-mfp-analytics-api-key", BMSAnalytics.getClientApiKey());
-            } else {
-                requestListener.onFailure(null, new IllegalArgumentException("Client API key has not been set."), null);
-                return;
-            }
-
-            //Add BMSClient GUID as a header, in order to support P30 Analytics:
-            String guid = BMSClient.getInstance().getBluemixAppGUID();
-            if(guid != null && guid.length() > 0){
-                sendLogsRequest.addHeader("x-analytics-p30-appid", guid);
-            }
-
-            sendLogsRequest.send(null, payloadObj, requestListener);
         }
     }
 
