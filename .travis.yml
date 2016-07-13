@@ -6,7 +6,15 @@ android:
   - build-tools-23.0.2
   - android-23
   - extra
-script: ./gradlew clean assemble test uploadArchives
+env:
+  global:
+  - END_TASK=""
+script:
+  - if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
+      export END_TASK="uploadArchives";
+    fi
+  - ./gradlew clean assemble test ${END_TASK}
 before_install:
-- openssl aes-256-cbc -K $encrypted_e468feeb014b_key -iv $encrypted_e468feeb014b_iv
-  -in gradle.properties.enc -out gradle.properties -d
+  - if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
+      openssl aes-256-cbc -K $encrypted_e468feeb014b_key -iv $encrypted_e468feeb014b_iv -in gradle.properties.enc -out gradle.properties -d;
+    fi

@@ -118,6 +118,7 @@ public class MFPAnalyticsActivityLifecycleListener {
                 // should not happen
                 logger.debug("JSONException encountered logging app session: " + e.getMessage());
             }
+            BMSAnalytics.log(metadata);
         }
     }
 

@@ -19,6 +19,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.provider.Settings;
+import android.util.Log;
 
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.api.LogPersister;
 import com.ibm.mobilefirstplatform.clientsdk.android.logger.api.Logger;
@@ -30,9 +31,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.UUID;
 
 public class MetadataHeaderInterceptor implements Interceptor {
+    private static final String TAG = MetadataHeaderInterceptor.class.getName();
+    private static String sdkVersion;
     public static final String ANALYTICS_DEVICE_METADATA_HEADER_NAME = "x-mfp-analytics-metadata";
     protected final JSONObject analyticsMetadataHeaderObject;
 
@@ -90,10 +95,43 @@ public class MetadataHeaderInterceptor implements Interceptor {
             } catch (PackageManager.NameNotFoundException e) {
                 Logger.getLogger(LogPersister.LOG_TAG_NAME).error("Could not get PackageInfo.", e);
             }
+
+            String sdkVersion = getSDKVersion();
+            if (sdkVersion != null) {
+                metadataHeader.put("sdkVersion", sdkVersion);
+            }
         } catch (JSONException e) {
             // there is no way this exception gets thrown when adding simple strings to a JSONObject
         }
         return metadataHeader;
+    }
+
+    private String getSDKVersion() {
+        if (sdkVersion == null) {
+            final String fileName = "sdk.properties";
+            final String propName = "sdk.version";
+            InputStream inputStream = null;
+            try {
+                inputStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(fileName);
+                Properties sdkProperties = new Properties();
+                sdkProperties.load(inputStream);
+                sdkVersion = sdkProperties.getProperty(propName);
+            } catch (IOException e) {
+                Log.i(TAG, "Could not load sdk properties", e);
+            } catch (Exception e) {
+                Log.i(TAG, "An Exception occurred while loading SDK properties", e);
+            } finally {
+                if (inputStream != null) {
+                    try {
+                        inputStream.close();
+                    } catch (IOException ioe) {
+                        Log.i(TAG, "Exception during inputStream close");
+                    }
+                }
+            }
+        }
+
+        return sdkVersion;
     }
 
 
