@@ -977,7 +977,7 @@ public final class LogPersister {
 
                     if (fileName.equals(USER_INTERACTIONS_FILENAME)) {
                         fileData = "[" + fileData.substring(0, fileData.length() - 1) + "]";
-                        logDataKey = "events";
+                        logDataKey = "log";
                         JSONArray logArray = new JSONArray(fileData);
                         payloadObj.put(logDataKey, logArray);
                     } else {
