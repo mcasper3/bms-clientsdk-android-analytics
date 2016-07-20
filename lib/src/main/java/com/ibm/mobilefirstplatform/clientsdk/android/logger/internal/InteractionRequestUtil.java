@@ -8,6 +8,7 @@ import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Log;
 
+import com.ibm.mobilefirstplatform.clientsdk.android.analytics.internal.BMSAnalytics;
 import com.ibm.mobilefirstplatform.clientsdk.android.security.identity.BaseDeviceIdentity;
 
 import org.json.JSONException;
@@ -35,7 +36,7 @@ public class InteractionRequestUtil {
             PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
             payload.put("appVersion", info.versionName);
             payload.put("appVersionCode", Integer.toString(info.versionCode));
-            payload.put("appID", context.getPackageName());
+            payload.put("appID", BMSAnalytics.getSavvyAppKey());
 
             Resources resources = context.getResources();
 
