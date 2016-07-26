@@ -132,6 +132,11 @@ public class BMSAnalytics {
         BaseRequest.registerInterceptor(new MetadataHeaderInterceptor(context.getApplicationContext()));
     }
 
+    /**
+     * Initialize Savvy API if it is being used. This must be called before interaction data can be sent
+     *
+     * @param appKey The key provided the the application developer from the Savvy Dashboard
+     */
     public static void initSavvy(String appKey) {
         BMSAnalytics.savvyAppKey = appKey;
     }

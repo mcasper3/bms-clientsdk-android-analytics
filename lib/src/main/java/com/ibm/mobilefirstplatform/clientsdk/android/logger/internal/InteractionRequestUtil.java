@@ -22,7 +22,15 @@ public class InteractionRequestUtil {
 
     }
 
-    public static JSONObject getInteractionRequestPayload(JSONObject payload, final Context context) {
+    /**
+     * Adds the fields that each interaction event will need but is not unique to the event. This
+     * reduces the size of the request being made since this data is not duplicated for each event
+     *
+     * @param payload The current payload of the request
+     * @param context A context to provide access to package information
+     * @return The payload with the required fields added
+     */
+    public static JSONObject getInteractionRequestPayload(JSONObject payload, Context context) {
         BaseDeviceIdentity deviceIdentity = new BaseDeviceIdentity(context);
 
         try {
