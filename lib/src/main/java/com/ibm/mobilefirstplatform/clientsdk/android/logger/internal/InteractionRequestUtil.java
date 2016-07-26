@@ -36,7 +36,7 @@ public class InteractionRequestUtil {
             PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
             payload.put("appVersion", info.versionName);
             payload.put("appVersionCode", Integer.toString(info.versionCode));
-            payload.put("appID", BMSAnalytics.getSavvyAppKey());
+            payload.put("appKey", BMSAnalytics.getSavvyAppKey());
 
             Resources resources = context.getResources();
 
