@@ -8,6 +8,7 @@ import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Log;
 
+import com.ibm.mobilefirstplatform.clientsdk.android.analytics.internal.BMSAnalytics;
 import com.ibm.mobilefirstplatform.clientsdk.android.security.identity.BaseDeviceIdentity;
 
 import org.json.JSONException;
@@ -21,7 +22,15 @@ public class InteractionRequestUtil {
 
     }
 
-    public static JSONObject getInteractionRequestPayload(JSONObject payload, final Context context) {
+    /**
+     * Adds the fields that each interaction event will need but is not unique to the event. This
+     * reduces the size of the request being made since this data is not duplicated for each event
+     *
+     * @param payload The current payload of the request
+     * @param context A context to provide access to package information
+     * @return The payload with the required fields added
+     */
+    public static JSONObject getInteractionRequestPayload(JSONObject payload, Context context) {
         BaseDeviceIdentity deviceIdentity = new BaseDeviceIdentity(context);
 
         try {
@@ -35,7 +44,7 @@ public class InteractionRequestUtil {
             PackageInfo info = packageManager.getPackageInfo(context.getPackageName(), 0);
             payload.put("appVersion", info.versionName);
             payload.put("appVersionCode", Integer.toString(info.versionCode));
-            payload.put("appID", context.getPackageName());
+            payload.put("appKey", BMSAnalytics.getSavvyAppKey());
 
             Resources resources = context.getResources();
 

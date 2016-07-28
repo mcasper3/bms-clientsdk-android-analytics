@@ -68,6 +68,7 @@ public class BMSAnalytics {
 
     protected static String clientApiKey = null;
     protected static String appName = null;
+    protected static String savvyAppKey = null;
     public static boolean isRecordingNetworkEvents = false;
 
     protected static String HASHED_DEFAULT_USER_ID;
@@ -129,6 +130,15 @@ public class BMSAnalytics {
 
         //Intercept requests to add device metadata header
         BaseRequest.registerInterceptor(new MetadataHeaderInterceptor(context.getApplicationContext()));
+    }
+
+    /**
+     * Initialize Savvy API if it is being used. This must be called before interaction data can be sent
+     *
+     * @param appKey The key provided the the application developer from the Savvy Dashboard
+     */
+    public static void initSavvy(String appKey) {
+        BMSAnalytics.savvyAppKey = appKey;
     }
 
     static protected String getDeviceID(Context context) {
@@ -254,6 +264,10 @@ public class BMSAnalytics {
 
     public static String getAppName(){
         return appName;
+    }
+
+    public static String getSavvyAppKey() {
+        return savvyAppKey;
     }
 
     /**
